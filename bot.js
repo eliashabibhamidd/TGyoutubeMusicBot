@@ -43,14 +43,20 @@ const languageKeyboard = {
 const getMenuKeyboard = (lang) => {
   return {
     reply_markup: {
-      keyboard: [
-        [{ text: languages[lang].help }, { text: languages[lang].contact }, { text: languages[lang].start }, { text: languages[lang].language }],
+      inline_keyboard: [
+        [
+          { text: languages[lang].help, callback_data: 'help' }, 
+          { text: languages[lang].contact, callback_data: 'contact' }, 
+          { text: languages[lang].start, callback_data: 'start' }, 
+          { text: languages[lang].language, callback_data: 'language' }
+        ],
       ],
       resize_keyboard: true,
       one_time_keyboard: false,
     },
   };
 };
+
 
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
@@ -69,6 +75,7 @@ bot.onText(/\/start/, (msg) => {
     bot.sendMessage(chatId, languages[userLang].startMessage, getMenuKeyboard(userLang));
   }
 });
+
 
 let botId = null;  
 
@@ -272,10 +279,37 @@ bot.on('callback_query', (callbackQuery) => {
   const chatId = callbackQuery.message.chat.id;
   const data = callbackQuery.data;
 
-  if (data.startsWith('set_language_')) {
-    const lang = data.split('_')[2];
-    userLanguages[chatId] = lang;
+  switch (data) {
+    case 'help':
+      bot.sendMessage(chatId, "send a yotube link example:https://www.youtube.com/watch");
+      break;
 
-    bot.sendMessage(chatId, `Language set to ${lang === 'en' ? 'English' : 'አማርኛ'}.`, getMenuKeyboard(lang));
+    case 'contact':
+      bot.sendMessage(chatId, "DM @eliashabibhamid");
+      break;
+
+    case 'start':
+      bot.sendMessage(chatId, languages[userLanguages[chatId]].startMessage, getMenuKeyboard(userLanguages[chatId]));
+      break;
+
+    case 'language':
+      bot.sendMessage(chatId, "Please select your language:", {
+        reply_markup: languageKeyboard,
+      });
+      break;
+
+    case 'set_language_en':
+      userLanguages[chatId] = 'en';
+      bot.sendMessage(chatId, `Language set to English.`, getMenuKeyboard('en'));
+      break;
+
+    case 'set_language_am':
+      userLanguages[chatId] = 'am';
+      bot.sendMessage(chatId, `ቋንቋ ወደ አማርኛ ተቀይሯል.`, getMenuKeyboard('am'));
+      break;
+
+    default:
+      bot.sendMessage(chatId, "Unrecognized command.");
+      break;
   }
 });
