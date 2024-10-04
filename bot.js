@@ -34,14 +34,14 @@ const languages = {
   },
 };
 
-// Language buttons
+
 const languageKeyboard = {
   inline_keyboard: [
     [{ text: 'English', callback_data: 'set_language_en' }, { text: 'አማርኛ', callback_data: 'set_language_am' }],
   ],
 };
 
-// Localized menu keyboard
+
 const getMenuKeyboard = (lang) => {
   return {
     reply_markup: {
@@ -56,6 +56,12 @@ const getMenuKeyboard = (lang) => {
 
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
+  const chatType = msg.chat.type;
+
+  if (chatType === 'group' || chatType === 'supergroup') {
+    return; // Ignore /start on gp
+  }
+
   if (!userLanguages[chatId]) {
     bot.sendMessage(chatId, "Please select your language🚀 / እባክዎን ቋንቋዎን ይምረጡ🎶", {
       reply_markup: languageKeyboard,
@@ -66,16 +72,33 @@ bot.onText(/\/start/, (msg) => {
   }
 });
 
+let botId = null;  
+
+
+bot.getMe().then((botInfo) => {
+  botId = botInfo.id;  
+  console.log(`Bot started! Bot ID: ${botId}`);
+}).catch((err) => {
+  console.error('Failed:', err);
+});
+
+
 bot.on('my_chat_member', (msg) => {
   const chatId = msg.chat.id;
+  const newChatMember = msg.new_chat_member;
 
-  // Check if the bot was added to the group (i.e., "new_chat_member" is the bot)
-  if (msg.new_chat_member && msg.new_chat_member.user.id === bot.id) {
-    if (msg.chat.type === 'group' || msg.chat.type === 'supergroup') {
-      const language = userLanguages[chatId] || 'en'; // Default to English if no language set
+  
+  if (newChatMember.user.id === botId && newChatMember.status === 'member') {
+    console.log('Bot is now a member of the group:', chatId);
 
-      bot.sendMessage(chatId, languages[language].startMessage);
-    }
+    const userLang = userLanguages[chatId] || 'en'; 
+    const welcomeMessage = userLang === 'en'
+      ? "👋 Hello! Send me a YouTube music video link, and I'll convert it to audio for you! To send, use: \n /get [YouTube link]. 🎶"
+      : "👋 ሰላም! የዩቲዩብ ሙዚቃ LINK ይላኩኝ እና ኦዲዮ ፋይል ልላክልዎት እችላለሁ! ለመላክ \n /get [የዩቲዩብ ሊንክ] ይጠቀሙ። 🎶";
+
+    bot.sendMessage(chatId, welcomeMessage);
+  } else {
+    console.log('Bot was not added:', newChatMember);
   }
 });
 
@@ -165,24 +188,37 @@ bot.onText(/\/get (.+)/, (msg, match) => {
     });
   } else {
     const userLang = userLanguages[chatId] || 'en';
-    bot.sendMessage(chatId, "❌ The /get command only works in group chats.");
+    bot.sendMessage(chatId, "This command only works in group chats.");
   }
 });
 
 bot.on('callback_query', (query) => {
   const chatId = query.message.chat.id;
+  const chatType = query.message.chat.type;
+
+  if (chatType === 'group' || chatType === 'supergroup') {
+    return; 
+  }
+
   const selectedLang = query.data.split('_')[2]; 
   userLanguages[chatId] = selectedLang;
 
   bot.sendMessage(chatId, languages[selectedLang].startMessage, getMenuKeyboard(selectedLang));
 });
 
+
 bot.on('message', (msg) => {
   const chatId = msg.chat.id;
+  const chatType = msg.chat.type;
   const text = msg.text;
   const userLang = userLanguages[chatId];
+
+  if (chatType === 'group' || chatType === 'supergroup') {
+    return; 
+  }
+
   if (!userLang) {
-    return; // Don't send any message if language is not set
+    return; 
   }
 
   if (text === languages[userLang].help) {
@@ -192,7 +228,7 @@ bot.on('message', (msg) => {
     bot.sendMessage(chatId, helpMessage, { parse_mode: 'HTML' });
     return;
   } else if (text === languages[userLang].contact) {
-    bot.sendMessage(chatId, userLang === 'en' ? "<b>DM</b> 💬 @eliashabibhamid for inquiries 📩" : "ለጥያቄዎች 💬 @eliashabibhamid  📩");
+    bot.sendMessage(chatId, userLang === 'en' ? "DM 💬 @eliashabibhamid for inquiries 📩" : "ለጥያቄዎች 💬 @eliashabibhamid  📩");
   } else if (text === languages[userLang].start) {
     bot.sendMessage(chatId, languages[userLang].startMessage, getMenuKeyboard(userLang));
     return;
